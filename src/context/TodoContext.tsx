@@ -1,6 +1,6 @@
 import React, { createContext, useState, useEffect, useMemo } from 'react';
 import { Todo, TodoContextType } from '../types/Todo';
-import { deleteTodo, getTodos, postCreateTodo } from '../api/todos';
+import { deleteTodo, getTodos, patchTodo, postCreateTodo } from '../api/todos';
 import { FILTERS } from '../filters/filter';
 
 export const TodoContext = createContext<TodoContextType | null>(null);
@@ -37,7 +37,45 @@ export const TodoProvider: React.FC<Props> = ({ children }) => {
     }
   }, [errorMessage]);
 
-  const handleSelected: TodoContextType['handleSelected'] = () => {};
+  const handleUpdateTodo: TodoContextType['handleUpdateTodo'] = async (
+    id,
+    updates,
+  ) => {
+    setErrorMessage('');
+    setProcessingTodoIds(currentIds =>
+      currentIds.includes(id) ? currentIds : [...currentIds, id],
+    );
+
+    try {
+      const updatedTodo = await patchTodo(id, updates);
+
+      setTodo(currentTodos =>
+        currentTodos.map(currentTodo =>
+          currentTodo.id === id ? updatedTodo : currentTodo,
+        ),
+      );
+
+      return true;
+    } catch {
+      setErrorMessage('Unable to update a todo');
+
+      return false;
+    } finally {
+      setProcessingTodoIds(currentIds =>
+        currentIds.filter(currentId => currentId !== id),
+      );
+    }
+  };
+
+  const handleSelected: TodoContextType['handleSelected'] = async id => {
+    const selectedTodo = todo.find(currentTodo => currentTodo.id === id);
+
+    if (!selectedTodo) {
+      return;
+    }
+
+    await handleUpdateTodo(id, { completed: !selectedTodo.completed });
+  };
 
   const handleCreateTodo = async (title: string) => {
     const trimmedTitle = title.trim();
@@ -78,13 +116,38 @@ export const TodoProvider: React.FC<Props> = ({ children }) => {
       setTodo(currentTodos =>
         currentTodos.filter(currentTodo => currentTodo.id !== id),
       );
+
+      return true;
     } catch {
       setErrorMessage('Unable to delete a todo');
+
+      return false;
     } finally {
       setProcessingTodoIds(currentIds =>
         currentIds.filter(currentId => currentId !== id),
       );
     }
+  };
+
+  const handleToggleAll = async () => {
+    const allCompleted =
+      todo.length > 0 && todo.every(currentTodo => currentTodo.completed);
+    const newCompletedValue = !allCompleted;
+    const todosToUpdate = todo.filter(
+      currentTodo => currentTodo.completed !== newCompletedValue,
+    );
+
+    if (todosToUpdate.length === 0) {
+      return;
+    }
+
+    await Promise.all(
+      todosToUpdate.map(currentTodo =>
+        handleUpdateTodo(currentTodo.id, {
+          completed: newCompletedValue,
+        }),
+      ),
+    );
   };
 
   const handleFilterAll = () => {
@@ -121,10 +184,15 @@ export const TodoProvider: React.FC<Props> = ({ children }) => {
     const failedToDelete = results.some(result => result.status === 'rejected');
 
     setTodo(currentTodos =>
-      currentTodos.filter((currentTodo, index) => {
-        const result = results[index];
+      currentTodos.filter(currentTodo => {
+        if (!currentTodo.completed) {
+          return true;
+        }
 
-        return result?.status === 'rejected' || !currentTodo.completed;
+        const completedTodoIndex = completedTodoIds.indexOf(currentTodo.id);
+        const result = results[completedTodoIndex];
+
+        return result?.status === 'rejected';
       }),
     );
 
@@ -162,7 +230,8 @@ export const TodoProvider: React.FC<Props> = ({ children }) => {
     filter,
     handleCreateTodo,
     handleRemoveCompleted,
-    setTodo,
+    handleUpdateTodo,
+    handleToggleAll,
     errorMessage,
     setErrorMessage,
   };

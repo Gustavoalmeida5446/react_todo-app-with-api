@@ -25,7 +25,12 @@ const TodosPage: React.FC = () => {
     processingTodoIds,
     isCreatingTodo,
     handleCreateTodo,
+    handleToggleAll,
   } = context;
+
+  const hasTodos = todo.length > 0;
+  const areAllTodosCompleted =
+    hasTodos && todo.every(currentTodo => currentTodo.completed);
 
   useEffect(() => {
     if (!isCreatingTodo && processingTodoIds.length === 0) {
@@ -59,6 +64,18 @@ const TodosPage: React.FC = () => {
 
       <div className="todoapp__content">
         <header className="todoapp__header">
+          {hasTodos && (
+            <button
+              type="button"
+              className={classNames('todoapp__toggle-all', {
+                active: areAllTodosCompleted,
+              })}
+              data-cy="ToggleAllButton"
+              aria-label="Toggle all todos"
+              onClick={handleToggleAll}
+            />
+          )}
+
           <form onSubmit={handleSubmit}>
             <input
               ref={newTodoFieldRef}

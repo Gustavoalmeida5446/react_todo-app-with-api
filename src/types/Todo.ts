@@ -10,8 +10,8 @@ export type TodoContextType = {
   tempTodo: Todo | null;
   processingTodoIds: number[];
   isCreatingTodo: boolean;
-  handleSelected: (id: number) => void;
-  handleRemove: (id: number) => Promise<void>;
+  handleSelected: (id: number) => Promise<void>;
+  handleRemove: (id: number) => Promise<boolean>;
   handleFilterAll: () => void;
   handleActive: () => void;
   handleCompleted: () => void;
@@ -19,7 +19,11 @@ export type TodoContextType = {
   filter: string;
   handleCreateTodo: (title: string) => Promise<boolean>;
   handleRemoveCompleted: () => Promise<void>;
-  setTodo: React.Dispatch<React.SetStateAction<Todo[]>>;
+  handleUpdateTodo: (
+    id: number,
+    updates: Partial<Pick<Todo, 'title' | 'completed'>>,
+  ) => Promise<boolean>;
+  handleToggleAll: () => Promise<void>;
   errorMessage: string;
   setErrorMessage: (message: string) => void;
 };
